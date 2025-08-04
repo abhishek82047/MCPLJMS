@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCPL Daily JMS Report</title> <!-- Changed Title -->
+    <!-- Favicon Link -->
+    <link rel="icon" href="https://images.ctfassets.net/v2a2klvd105s/7ee1ZcSwnBIM8N1wPa0rLh/fc8157a36a8d3180383394698367d273/ChatGPT_Image_Jun_24__2025__10_47_28_AM.png" type="image/png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        /* CSS Reset & Global Styles */
+        :root {
+            --primary-color: #4CAF50; /* Green */
+            --primary-dark: #388E3C;
+            --secondary-color: #2196F3; /* Blue */
+            --secondary-dark: #1976D2;
+            --danger-color: #F44336; /* Red */
+            --danger-dark: #D32F2F;
+            --text-color: #333;
+            --light-gray: #f4f4f4;
+            --medium-gray: #eee;
+            --dark-gray: #ccc;
+            --border-radius: 8px;
+            --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--light-gray);
+            padding-bottom: 70px; /* Space for bottom nav */
+            padding-top: 0; /* Ensures content starts at the very top */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 960px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            position: relative; /* For absolute positioning of login section if active */
+            z-index: 1; /* Ensure dashboard content is below login when login is active */
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .mt-2 { margin-top: 1rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .py-2 { padding-top: 1rem; padding-bottom: 1rem; }
+        .px-3 { padding-left: 1.5rem; padding-right: 1.5rem; }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn:disabled {
+            background-color: var(--dark-gray);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-dark); transform: translateY(-1px); }
+
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .btn-secondary:hover:not(:disabled) { background-color: var(--secondary-dark); transform: translateY(-1px); }
+
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-danger:hover:not(:disabled) { background-color: var(--danger-dark); transform: translateY(-1px); }
+
+
+        /* Forms & Inputs */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: 500; 
+            text-align: left;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--dark-gray);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        .form-group input:read-only { background-color: var(--medium-gray); }
+
+        /* Password Input Wrapper */
+        .password-input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .password-input-wrapper input {
+            padding-right: 40px;
+        }
+        .password-input-wrapper .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--text-color);
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            display: none;
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            z-index: 9999;
+            box-shadow: var(--shadow);
+        }
+        .alert.show { display: block; animation: fadeInOut 5s forwards; }
+        .alert-success { background-color: #e6ffe6; color: #2e8b57; border: 1px solid #2e8b57; }
+        .alert-error { background-color: #ffe6e6; color: #cc0000; border: 1px solid #cc0000; }
+        .alert-info { background-color: #e6f7ff; color: #007bff; border: 1px solid #007bff; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, 20px); }
+        }
+
+
+        /* Login/Signup Section - Full screen overlay */
+        #login-signup-section { 
+            padding: 40px 20px; 
+            text-align: center; 
+            flex-grow: 1; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            position: absolute; /* Take full screen */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--light-gray); /* Background for login page */
+            z-index: 1001; /* Ensure it's above other elements when active */
+        }
+        #login-signup-section .form-container {
+            max-width: 500px; /* Wider default for larger screens */
+            width: 90%; /* Occupy 90% width on mobile */
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: left; /* Align form elements to the left */
+        }
+        #login-signup-section .form-container h2 {
+            text-align: center; /* Center the title */
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        /* Dashboard Section */
+        #dashboard-section { display: none; flex-direction: column; flex-grow: 1; }
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            flex-direction: column; /* Stack vertically for the two header rows */
+            align-items: flex-start; /* Align items to the start */
+            flex-wrap: wrap; 
+        }
+        .header .header-top {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px; /* Space between top and bottom parts of header */
+        }
+        .header .header-bottom {
+            display: flex;
+            justify-content: space-between; /* Space out user info and logout */
+            align-items: center;
+            width: 100%;
+            padding-top: 5px; /* Padding above the bottom elements */
+            border-top: 1px solid rgba(255, 255, 255, 0.2); /* Subtle separator */
+        }
+        .header h1 { 
+            font-size: 1.5rem; 
+            margin: 0; 
+            display: flex; 
+            align-items: center; 
+            flex-grow: 1; 
+            margin-bottom: 0; 
+        }
+        .header .app-logo {
+            width: 35px; 
+            height: 35px; 
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid white; 
+            flex-shrink: 0; 
+        }
+        .header .user-info { 
+            font-weight: 500; 
+            flex-shrink: 0; 
+        }
+        .header .logout-btn {
+            background-color: var(--danger-color); 
+            border: 1px solid var(--danger-color);
+            color: white;
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            flex-shrink: 0; 
+            margin-left: auto; /* Push logout button to the right within header-bottom */
+        }
+        .header .logout-btn:hover { 
+            background-color: var(--danger-dark); 
+            border-color: var(--danger-dark); 
+        }
+
+        /* Bottom Navigation (Mobile Only) */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: var(--primary-dark);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .nav-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            color: white;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 0;
+            transition: background-color 0.3s;
+        }
+        .nav-tab i {
+            font-size: 1.5em;
+            margin-bottom: 4px;
+        }
+        .nav-tab span {
+            font-size: 0.75em;
+        }
+        .nav-tab.active {
+            background-color: rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+        }
+
+        .dashboard-content { padding: 20px; flex-grow: 1; overflow-y: auto; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+
+        /* Card & Table */
+        .card { background: #fff; padding: 20px; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 20px; }
+        .card h3 { margin-bottom: 15px; color: var(--primary-color); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--dark-gray); }
+        th { background-color: var(--primary-color); color: white; font-weight: 500; }
+        tbody tr:nth-child(even) { background-color: var(--light-gray); }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* Pie Chart Container - Dashboard */
+        #pie-chart-container {
+            max-width: 200px;
+            margin: 20px auto 0;
+        }
+        
+        /* Leaderboard Specifics */
+        .leaderboard-table .rank-gold { color: gold; font-weight: bold; }
+        .leaderboard-table .rank-silver { color: silver; font-weight: bold; }
+        .leaderboard-table .rank-bronze { color: #cd7f32; font-weight: bold; }
+        .leaderboard-table tr.current-user-rank { background-color: #e0f2f7; font-weight: bold; }
+        
+        /* Modals */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.6); justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background-color: #fff; margin: auto; padding: 30px; border-radius: var(--border-radius); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); max-width: 600px; width: 100%; position: relative; }
+        .close-button { color: var(--dark-gray); font-size: 28px; font-weight: bold; position: absolute; top: 10px; right: 20px; cursor: pointer; }
+        
+        /* Fill Today's Form Card Specifics */
+        .fill-form-prompt-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-height: 180px; 
+            position: relative;
+        }
+        .fill-form-prompt-card h3 {
+            margin-bottom: 10px;
+            color: var(--secondary-color);
+        }
+        .fill-form-prompt-card .btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+        }
+        .fill-form-prompt-card .btn-success {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .fill-form-prompt-card .btn-success:hover {
+            animation: none;
+            background-color: var(--primary-dark);
+        }
+        .fill-form-prompt-card .already-submitted {
+            background-color: var(--dark-gray);
+            cursor: not-allowed;
+            animation: none;
+            transform: none;
+        }
+
+        /* Download Report Button Container Centering */
+        .download-report-btn-container {
+            margin-top: 20px;
+            text-align: center; /* Center align the button */
+        }
+
+        /* PDF Report Template Specific Styles (Hidden on screen, used for html2canvas) */
+        #pdf-report-template {
+            position: absolute;
+            left: -9999px; /* Hide off-screen */
+            top: -9999px;
+            width: 210mm; /* A4 width */
+            padding: 15mm; /* Margins for the PDF */
+            box-sizing: border-box;
+            background-color: white;
+            color: var(--text-color);
+            font-family: 'Roboto', sans-serif;
+            font-size: 10px; /* Base font size for PDF */
+        }
+        #pdf-report-template .pdf-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #00008B; /* Dark Blue line below header */
+            padding-bottom: 10px;
+        }
+        #pdf-report-template .pdf-header img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        #pdf-report-template .pdf-header h2 {
+            font-size: 18px; /* Larger header for PDF */
+            color: #00008B; /* Dark Blue */
+            margin: 0;
+            font-weight: 700; /* Bold */
+            flex-grow: 1; /* Allows title to take up available space */
+        }
+        #pdf-report-template .pdf-header .user-rank-info {
+            font-size: 10px;
+            color: #555;
+            text-align: right;
+            margin-left: auto; /* Push to the right */
+        }
+        #pdf-report-template .pdf-header .user-rank-info span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        #pdf-report-template p {
+            font-size: 9px;
+            margin-bottom: 4px;
+        }
+        #pdf-report-template hr {
+            margin: 10px 0;
+            border-color: var(--dark-gray);
+        }
+        #pdf-report-template .report-summary div {
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+        #pdf-report-template .report-layout-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* History on left, Chart on right */
+            gap: 15px; /* Smaller gap for PDF */
+            margin-top: 15px;
+            align-items: start; /* Align items to the top of their cells */
+        }
+        /* Adjusted PDF chart container and canvas for better quality and no blank space */
+        #pdf-report-template .report-chart-container {
+            width: 200px; /* Explicit width for PDF chart, matching canvas attribute */
+            height: 200px; /* Explicit height for PDF chart, matching canvas attribute */
+            margin: 0 auto; /* Center the container */
+            display: flex; /* Use flex to center the canvas inside */
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Hide any overflow if chart is slightly larger */
+        }
+        #pdf-report-template #pdf-report-chart { /* Target the canvas directly */
+            width: 200px !important; /* Force Chart.js to render exactly this size */
+            height: 200px !important; /* Force Chart.js to render exactly this size */
+            display: block;
+        }
+
+        #pdf-report-template table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        #pdf-report-template table th, #pdf-report-template table td {
+            padding: 4px 6px;
+            font-size: 8px;
+            border-bottom: 1px solid var(--dark-gray);
+        }
+        #pdf-report-template table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        #pdf-report-template .pdf-footer {
+            text-align: center;
+            font-size: 8px;
+            color: #666;
+            margin-top: 30px;
+            width: 100%;
+        }
+
+        /* Global Footer for the web app */
+        .app-footer {
+            text-align: center;
+            padding: 15px;
+            font-size: 0.85em;
+            color: #666;
+            background-color: var(--medium-gray);
+            margin-top: auto;
+        }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 768px) {
+            body { 
+                padding-top: 0; 
+                padding-bottom: 60px;
+            }
+            .container { 
+                margin: 0; 
+                border-radius: 0; 
+                box-shadow: none; 
+                min-height: 100vh; 
+            }
+            #login-signup-section {
+                padding: 20px 10px;
+            }
+            #login-signup-section .form-container {
+                max-width: 95%;
+                padding: 15px;
+            }
+            .header { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                padding: 10px 15px; 
+            }
+            .header .header-top {
+                margin-bottom: 5px; /* Slightly less space on mobile */
+            }
+            .header .header-bottom {
+                flex-direction: row; /* Keep them inline on mobile as per existing image */
+                justify-content: space-between;
+                align-items: center;
+            }
+            .header .user-info { 
+                margin-right: 15px; 
+                margin-bottom: 0; 
+                width: auto; 
+            }
+            .header .logout-btn { 
+                margin-left: auto; 
+                align-self: center; 
+            }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .app-footer {
+                margin-top: 0;
+                position: static;
+            }
+        }
+
+        /* Desktop specific adjustments */
+        @media (min-width: 769px) {
+            body {
+                padding-bottom: 0;
+            }
+            .container {
+                margin: 0 auto; 
+                border-radius: var(--border-radius); 
+            }
+            .bottom-nav {
+                display: none;
+            }
+            .content-section:not(.active) {
+                display: none;
+            }
+            .alert {
+                bottom: 20px;
+            }
+            .app-footer {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="alert-container"></div> 
+
+    <div class="container">
+        <!-- Login/Signup Section -->
+        <section id="login-signup-section">
+            <div class="form-container">
+                <h2 id="auth-title">Welcome Back!</h2>
+                <form id="login-form">
+                    <div class="form-group"><label for="login-email">Email</label><input type="email" id="login-email" required></div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="login-password" required>
+                            <span class="toggle-password" onclick="togglePasswordVisibility('login-password')">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="form-group" style="text-align: left;">
+                        <input type="checkbox" id="remember-me" style="width: auto; margin-right: 5px;">
+                        <label for="remember-me" style="display: inline;">Remember Me</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+                    <p class="mt-2 text-center"><span class="toggle-form" id="show-signup">Don't have an account? Signup</span></p>
+                    <p class="mt-2 text-center"><span class="toggle-form" id="forgot-password">Forgot Password?</span></p>
+                </form>
+                <form id="signup-form" style="display: none;">
+                    <div class="form-group"><label for="signup-fullname">Full Name</label><input type="text" id="signup-fullname" required></div>
+                    <div class="form-group"><label for="signup-email">Email</label><input type="email" id="signup-email" required></div>
+                    <div class="form-group"><label for="signup-contact">Contact Number</label><input type="tel" id="signup-contact" required></div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="signup-password" required>
+                            <span class="toggle-password" onclick="togglePasswordVisibility('signup-password')">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="signup-btn">Signup</button>
+                    <p class="mt-2 text-center"><span class="toggle-form" id="show-login">Already have an account? Login</span></p>
+                </form>
+                <form id="forgot-password-form" style="display: none;">
+                    <div class="form-group"><label for="reset-email">Email</label><input type="email" id="reset-email" required></div>
+                    <button type="submit" class="btn btn-primary" id="reset-password-btn">Send Reset Email</button>
+                    <p class="mt-2 text-center"><span class="toggle-form" id="back-to-login">Back to Login</span></p>
+                </form>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section">
+            <header class="header">
+                <div class="header-top">
+                    <h1>
+                        <img src="https://images.ctfassets.net/v2a2klvd105s/7ee1ZcSwnBIM8N1wPa0rLh/fc8157a36a8d3180383394698367d273/ChatGPT_Image_Jun_24__2025__10_47_28_AM.png" alt="App Logo" class="app-logo">
+                        MCPL Daily JMS Report <!-- Changed Header Title -->
+                    </h1>
+                </div>
+                <div class="header-bottom">
+                    <span class="user-info">Welcome, <span id="user-name-display"></span>!</span>
+                    <button class="logout-btn" id="logout-btn">Logout</button>
+                </div>
+            </header>
+
+            <main class="dashboard-content">
+                <div id="dashboard-summary-section" class="content-section active">
+                    <div class="dashboard-grid">
+                        <div class="card fill-form-prompt-card">
+                            <h3>Ready for today's report?</h3>
+                            <p id="daily-submission-status">Click below to submit your daily report.</p>
+                            <button id="fill-today-form-btn" class="btn btn-success">Fill Today's JMS Form</button>
+                        </div>
+                        <div class="card">
+                            <h3 id="monthly-progress-title">Monthly Progress</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: center;">
+                                <div><p>Submitted</p><h2 id="total-submitted-days">0</h2></div>
+                                <div><p>Total Days</p><h2 id="total-days-in-month">0</h2></div>
+                            </div>
+                            <div id="pie-chart-container">
+                                <canvas id="completion-pie-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="download-report-btn-container">
+                        <button id="download-report-btn" class="btn btn-secondary"><i class="fas fa-download"></i> Download Monthly Report (PDF)</button>
+                    </div>
+                </div>
+
+                <div id="fill-form-section" class="content-section">
+                    <div class="card">
+                        <h3>Daily Report Form</h3>
+                        <p class="mb-2">1. Open and submit the Google Form with your GPS photo.</p>
+                        <a href="https://forms.gle/BNY6FzJCpyuo9F6D7" target="_blank" class="btn btn-secondary mb-2">Open Google Form</a>
+                        <p class="mb-2">2. After submitting, fill the details below and click the button to mark your attendance.</p>
+                        <form id="daily-report-form">
+                            <div class="form-group"><label for="project-name">Project Name</label><input type="text" id="project-name" required></div>
+                            <div class="form-group"><label for="work-summary">Work Summary</label><textarea id="work-summary" rows="4" required></textarea></div>
+                            <button type="submit" class="btn btn-primary" id="mark-submitted-btn">Mark This Day as Submitted</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="submission-history-section" class="content-section">
+                    <div class="card">
+                        <h3>Submission History</h3>
+                        <div id="history-container">Loading history...</div>
+                    </div>
+                </div>
+
+                <div id="leaderboard-section" class="content-section">
+                    <div class="card">
+                        <h3>Monthly Leaderboard</h3>
+                        <div class="leaderboard-nav text-center mb-2" style="display: flex; justify-content: center; align-items: center;">
+                            <button id="prev-month-btn" class="btn btn-secondary">←</button>
+                            <span id="current-leaderboard-month" class="mx-2" style="margin: 0 15px; font-weight: bold;"></span>
+                            <button id="next-month-btn" class="btn btn-secondary">→</button>
+                        </div>
+                        <table class="leaderboard-table">
+                            <thead><tr><th>Rank</th><th>Name</th><th>Submissions</th></tr></thead>
+                            <tbody id="leaderboard-body"></tbody>
+                        </table>
+                        <p class="mt-2 text-center">Your Rank: <span id="my-rank">-</span> (Submissions: <span id="my-submission-count">-</span>)</p>
+                    </div>
+                </div>
+
+                <div id="profile-section" class="content-section">
+                    <div class="card">
+                        <h3>User Profile</h3>
+                        <form id="profile-form">
+                            <div class="form-group"><label for="profile-email">Email</label><input type="email" id="profile-email" readonly></div>
+                            <div class="form-group"><label for="profile-fullname">Full Name</label><input type="text" id="profile-fullname" required></div>
+                            <div class="form-group"><label for="profile-contact">Contact Number</label><input type="tel" id="profile-contact" required></div>
+                            <div class="form-group"><label for="profile-registered-date">Registered Date</label><input type="text" id="profile-registered-date" readonly></div>
+                            <button type="submit" class="btn btn-primary" id="update-profile-btn">Update Profile</button>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Bottom Navigation (Hidden on Desktop via CSS) -->
+        <nav class="bottom-nav">
+            <button class="nav-tab active" data-target="dashboard-summary-section">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-tab" data-target="fill-form-section">
+                <i class="fas fa-edit"></i>
+                <span>Fill Form</span>
+            </button>
+            <button class="nav-tab" data-target="submission-history-section">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </button>
+            <button class="nav-tab" data-target="leaderboard-section">
+                <i class="fas fa-trophy"></i>
+                <span>Leaderboard</span>
+            </button>
+            <button class="nav-tab" data-target="profile-section">
+                <i class="fas fa-user"></i>
+                <span>Profile</span>
+            </button>
+        </nav>
+
+        <div id="submission-details-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">×</span>
+                <h3>Submission Details</h3>
+                <div class="modal-body">
+                    <p><strong>Date:</strong> <span id="detail-date"></span></p>
+                    <p><strong>Time:</strong> <span id="detail-time"></span></p>
+                    <p><strong>Project Name:</strong> <span id="detail-project"></span></p>
+                    <p><strong>Work Summary:</strong> <span id="detail-summary"></span></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Hidden div for PDF generation -->
+    <div id="pdf-report-template">
+        <!-- Content will be dynamically injected here for PDF capture -->
+        <!-- Canvas for PDF chart - ensure fixed width/height for Chart.js to render correctly -->
+        <canvas id="pdf-report-chart" width="200" height="200"></canvas>
+    </div>
+
+    <!-- Global Footer for the web app -->
+    <footer class="app-footer">
+        ©2025 Created by Abhishek Rajput
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, getDoc, getDocs, query, where, orderBy, updateDoc, Timestamp, documentId } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC832z8vt-bQANbHN-19RPdRXj_zLpCe3c",
+            authDomain: "vendorjmsform.firebaseapp.com",
+            projectId: "vendorjmsform",
+            storageBucket: "vendorjmsform.appspot.com",
+            messagingSenderId: "993160846910",
+            appId: "1:993160846910:web:8a0c0528930a0163623b6f"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DOM Elements ---
+        const loginSignupSection = document.getElementById('login-signup-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const alertContainer = document.getElementById('alert-container');
+        const authTitle = document.getElementById('auth-title');
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const forgotPasswordForm = document.getElementById('forgot-password-form');
+        const showSignupBtn = document.getElementById('show-signup');
+        const showLoginBtn = document.getElementById('show-login');
+        const forgotPasswordBtn = document.getElementById('forgot-password');
+        const backToLoginBtn = document.getElementById('back-to-login');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userNameDisplay = document.getElementById('user-name-display');
+        const navTabs = document.querySelectorAll('.nav-tab');
+        const contentSections = document.querySelectorAll('.content-section');
+        const monthlyProgressTitle = document.getElementById('monthly-progress-title');
+        const totalSubmittedDays = document.getElementById('total-submitted-days');
+        const totalDaysInMonth = document.getElementById('total-days-in-month');
+        const completionPieChartCanvas = document.getElementById('completion-pie-chart');
+        const dailyReportForm = document.getElementById('daily-report-form');
+        const markSubmittedBtn = document.getElementById('mark-submitted-btn');
+        const historyContainer = document.getElementById('history-container');
+        const submissionDetailsModal = document.getElementById('submission-details-modal');
+        const closeModalBtn = submissionDetailsModal.querySelector('.close-button');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+        const currentLeaderboardMonthSpan = document.getElementById('current-leaderboard-month');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+        const myRankSpan = document.getElementById('my-rank');
+        const mySubmissionCountSpan = document.getElementById('my-submission-count');
+        const profileForm = document.getElementById('profile-form');
+        const fillTodayFormBtn = document.getElementById('fill-today-form-btn');
+        const dailySubmissionStatus = document.getElementById('daily-submission-status');
+        const downloadReportBtn = document.getElementById('download-report-btn');
+        const rememberMeCheckbox = document.getElementById('remember-me'); // New DOM element
+
+        // PDF Generation specific elements
+        const pdfReportTemplate = document.getElementById('pdf-report-template');
+        // This 'pdfReportChartCanvas' is a placeholder. The actual canvas inside pdfReportTemplate 
+        // will be re-selected after its HTML content is dynamically injected.
+
+
+        let currentUser = null;
+        let currentUserData = null;
+        let currentLeaderboardDate = new Date();
+        let completionPieChart = null; // Stores the Chart.js instance for the dashboard pie chart
+        let reportPieChart = null;    // Stores the Chart.js instance for the report modal pie chart
+
+        // --- Helper Functions ---
+        function showAlert(message, type = 'info') {
+            // Remove 'show' class first to ensure animation replays if called rapidly
+            alertContainer.classList.remove('show');
+            alertContainer.className = `alert alert-${type}`; 
+            alertContainer.textContent = message;
+            alertContainer.style.display = 'block';
+            // Re-add 'show' after a slight delay to trigger CSS animation
+            // This is a common pattern to restart CSS animations
+            void alertContainer.offsetWidth; // Trigger reflow
+            alertContainer.classList.add('show'); 
+        }
+        
+        const formatDate = (ts) => ts ? ts.toDate().toLocaleDateString() : 'N/A';
+        const formatTime = (ts) => ts ? ts.toDate().toLocaleTimeString() : 'N/A';
+        const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        const getMonthName = (date) => date.toLocaleString('default', { month: 'long' });
+
+        // Changed: New function for PDF specific date format
+        const formatPdfDate = (dateObj) => {
+            if (!dateObj) return 'N/A';
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = dateObj.toLocaleString('default', { month: 'short' }); // Shorter month for table columns
+            const year = dateObj.getFullYear();
+            return `${day}-${month}-${year}`;
+        };
+
+        // Function to toggle password visibility
+        window.togglePasswordVisibility = function(inputFieldId) {
+            const passwordInput = document.getElementById(inputFieldId);
+            const toggleIcon = passwordInput.nextElementSibling.querySelector('i'); // Assumes icon is direct child of next sibling span
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        };
+
+        // Function to load saved email
+        function loadRememberedEmail() {
+            const savedEmail = localStorage.getItem('rememberedEmail');
+            if (savedEmail) {
+                loginForm['login-email'].value = savedEmail;
+                rememberMeCheckbox.checked = true;
+            }
+        }
+
+
+        // --- Core App Logic ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                // Fetch user data from 'users' collection using UID
+                const userQuery = query(collection(db, "users"), where("uid", "==", user.uid));
+                const userSnapshot = await getDocs(userQuery);
+                if (!userSnapshot.empty) {
+                    currentUserData = userSnapshot.docs[0].data();
+                    userNameDisplay.textContent = currentUserData.fullName || user.email;
+                } else {
+                    // Fallback if user data not found in 'users' collection (e.g., old user or signup issue)
+                    currentUserData = { uid: user.uid, email: user.email, fullName: user.email, contactNumber: 'N/A', registeredDate: Timestamp.now() };
+                    userNameDisplay.textContent = user.email;
+                }
+                
+                loginSignupSection.style.display = 'none';
+                dashboardSection.style.display = 'flex';
+                // Show bottom nav by default, CSS media query will hide on desktop
+                document.querySelector('.bottom-nav').style.display = 'flex'; 
+                showSection('dashboard-summary-section'); // Always start on dashboard
+                loadDashboardData();
+                checkDailySubmissionStatus(); // Check and update the daily form button
+            } else {
+                currentUser = null;
+                currentUserData = null;
+                loginSignupSection.style.display = 'flex';
+                dashboardSection.style.display = 'none';
+                document.querySelector('.bottom-nav').style.display = 'none'; // Hide nav if logged out
+                loadRememberedEmail(); // Load remembered email when no user is logged in
+                authTitle.textContent = 'Welcome Back!'; // Set login title
+            }
+        });
+
+        function showSection(targetId) {
+            contentSections.forEach(section => section.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+            navTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.target === targetId));
+            
+            // Load data when tab is selected
+            switch(targetId) {
+                case 'dashboard-summary-section': loadDashboardData(); checkDailySubmissionStatus(); break;
+                case 'fill-form-section': 
+                    // Reset form when navigated to
+                    dailyReportForm.reset();
+                    // Ensure the button state is correct if navigated back
+                    checkDailySubmissionStatus(); 
+                    break;
+                case 'submission-history-section': loadSubmissionHistory(); break;
+                case 'leaderboard-section': loadLeaderboard(new Date()); break;
+                case 'profile-section': loadProfileData(); break;
+            }
+        }
+        navTabs.forEach(tab => tab.addEventListener('click', () => showSection(tab.dataset.target)));
+
+        // --- Authentication ---
+        loginForm.addEventListener('submit', (e) => { 
+            e.preventDefault(); 
+            const email = loginForm['login-email'].value;
+            const password = loginForm['login-password'].value;
+
+            if (rememberMeCheckbox.checked) {
+                localStorage.setItem('rememberedEmail', email);
+            } else {
+                localStorage.removeItem('rememberedEmail');
+            }
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then(() => {
+                    showAlert('Logged in successfully!', 'success');
+                })
+                .catch(err => {
+                    showAlert(err.message, 'error'); 
+                });
+        });
+
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, signupForm['signup-email'].value, signupForm['signup-password'].value);
+                currentUserData = {
+                    uid: cred.user.uid,
+                    email: signupForm['signup-email'].value,
+                    fullName: signupForm['signup-fullname'].value,
+                    contactNumber: signupForm['signup-contact'].value,
+                    registeredDate: Timestamp.now()
+                };
+                // Store user data in 'users' collection
+                await addDoc(collection(db, "users"), currentUserData);
+                showAlert('Account created! Please login.', 'success');
+                showLoginBtn.click(); // Switch back to login form
+            } catch (err) { showAlert(err.message, 'error'); }
+        });
+
+        forgotPasswordForm.addEventListener('submit', (e) => { 
+            e.preventDefault(); 
+            sendPasswordResetEmail(auth, forgotPasswordForm['reset-email'].value)
+                .then(() => showAlert('Password reset email sent! Check your inbox.', 'info'))
+                .catch(err => showAlert(err.message, 'error')); 
+        });
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        // Update auth title when toggling forms
+        showSignupBtn.addEventListener('click', () => { authTitle.textContent = 'Create Account'; loginForm.style.display = 'none'; signupForm.style.display = 'block'; forgotPasswordForm.style.display = 'none'; });
+        showLoginBtn.addEventListener('click', () => { authTitle.textContent = 'Welcome Back!'; loginForm.style.display = 'block'; signupForm.style.display = 'none'; forgotPasswordForm.style.display = 'none'; });
+        forgotPasswordBtn.addEventListener('click', () => { authTitle.textContent = 'Reset Password'; loginForm.style.display = 'none'; signupForm.style.display = 'none'; forgotPasswordForm.style.display = 'block'; });
+        backToLoginBtn.addEventListener('click', () => showLoginBtn.click());
+
+        // --- Dashboard Summary ---
+        async function loadDashboardData() {
+            if (!currentUser) return;
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            
+            monthlyProgressTitle.textContent = `${getMonthName(now)} Progress`;
+
+            const q = query(collection(db, "submissions"), where("uid", "==", currentUser.uid), where("timestamp", ">=", startOfMonth), where("timestamp", "<=", endOfMonth));
+            try {
+                const snap = await getDocs(q);
+                const submittedCount = snap.size;
+                const totalDays = getDaysInMonth(now);
+                
+                totalSubmittedDays.textContent = submittedCount;
+                totalDaysInMonth.textContent = totalDays;
+
+                // Update the main dashboard pie chart
+                completionPieChart = updatePieChart(completionPieChartCanvas, submittedCount, totalDays - submittedCount, completionPieChart);
+
+            } catch (error) {
+                console.error("Dashboard Error:", error);
+                showAlert("Failed to load dashboard data. A Firestore index might be required for this query (check F12 console).", "error");
+            }
+        }
+
+        async function checkDailySubmissionStatus() {
+            if (!currentUser) return;
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(todayStart);
+            todayEnd.setDate(todayEnd.getDate() + 1);
+            todayEnd.setMilliseconds(-1); // End of today
+
+            const q = query(collection(db, "submissions"), where("uid", "==", currentUser.uid), where("timestamp", ">=", todayStart), where("timestamp", "<=", todayEnd));
+            try {
+                const todaysSubmissions = await getDocs(q);
+                if (!todaysSubmissions.empty) {
+                    fillTodayFormBtn.disabled = true;
+                    fillTodayFormBtn.classList.add('already-submitted');
+                    fillTodayFormBtn.textContent = 'Submitted for Today';
+                    dailySubmissionStatus.textContent = `You've submitted today's report on ${formatDate(todaysSubmissions.docs[0].data().timestamp)} at ${formatTime(todaysSubmissions.docs[0].data().timestamp)}.`;
+                } else {
+                    fillTodayFormBtn.disabled = false;
+                    fillTodayFormBtn.classList.remove('already-submitted');
+                    fillTodayFormBtn.textContent = 'Fill Today\'s JMS Form';
+                    dailySubmissionStatus.textContent = 'Click below to submit your daily report.';
+                }
+            } catch (error) {
+            
+                console.error("Daily Submission Status Check Error:", error);
+                showAlert("Failed to check daily submission status. A Firestore index might be required for this query (check F12 console).", "error");
+            }
+        }
+
+        // Function to update pie chart, used for both dashboard and PDF
+        function updatePieChart(canvasElement, submitted, remaining, chartInstance) {
+            const data = {
+                labels: ['Submitted', 'Remaining'],
+                datasets: [{
+                    label: 'Monthly Progress',
+                    data: [submitted, remaining],
+                    backgroundColor: [
+                        'rgba(76, 175, 80, 0.8)', /* Submitted (Green) */
+                        'rgba(238, 238, 238, 0.8)' /* Remaining (Light Gray) */
+                    ],
+                    borderColor: [
+                        'rgba(76, 175, 80, 1)',
+                        'rgba(204, 204, 204, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            };
+
+            const isPdfChart = canvasElement.id === 'pdf-report-chart';
+
+            const config = {
+                type: 'pie',
+                data: data,
+                options: {
+                    responsive: !isPdfChart, // Responsive for dashboard, false for PDF
+                    maintainAspectRatio: !isPdfChart, // Maintain aspect ratio for dashboard, false for PDF
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                // Consistent font size for both charts
+                                font: {
+                                    size: 10 
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    // Consistent padding for both charts (no specific padding by default for pie charts)
+                    layout: {
+                        padding: {} 
+                    },
+                    // Consistent border width for both charts
+                    elements: {
+                        arc: {
+                            borderWidth: 1 
+                        }
+                    }
+                },
+            };
+
+            if (chartInstance) {
+                chartInstance.data = data;
+                chartInstance.update();
+                return chartInstance;
+            } else {
+                return new Chart(canvasElement, config);
+            }
+        }
+
+        // Handle the "Fill Today's Form" button click
+        fillTodayFormBtn.addEventListener('click', () => {
+            showSection('fill-form-section');
+            // Optional: scroll to the form within the section if it's long
+            document.getElementById('daily-report-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        // --- Fill Form ---
+        dailyReportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            markSubmittedBtn.disabled = true;
+            markSubmittedBtn.textContent = 'Submitting...';
+
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(todayStart);
+            todayEnd.setDate(todayEnd.getDate() + 1);
+            todayEnd.setMilliseconds(-1); // End of today
+
+            const q = query(collection(db, "submissions"), where("uid", "==", currentUser.uid), where("timestamp", ">=", todayStart), where("timestamp", "<=", todayEnd));
+
+            try {
+                const todaysSubmissions = await getDocs(q);
+                if (!todaysSubmissions.empty) {
+                    showAlert('You have already submitted for today.', 'info');
+                    return;
+                }
+
+                // Ensure currentUserData is fresh or use a fallback for fullName
+                let submitterFullName = currentUserData?.fullName;
+                if (!submitterFullName && currentUser) {
+                    const userQuery = query(collection(db, "users"), where("uid", "==", currentUser.uid));
+                    const userSnap = await getDocs(userQuery);
+                    if (!userSnap.empty) {
+                        currentUserData = userSnap.docs[0].data(); // Refresh currentUserData
+                        submitterFullName = currentUserData.fullName;
+                    }
+                }
+                submitterFullName = submitterFullName || currentUser?.email || 'Unknown User'; // Final fallback for name in submission
+
+                await addDoc(collection(db, "submissions"), {
+                    uid: currentUser.uid,
+                    email: currentUser.email,
+                    fullName: submitterFullName, // Use the determined full name
+                    timestamp: Timestamp.now(),
+                    projectName: dailyReportForm['project-name'].value,
+                    workSummary: dailyReportForm['work-summary'].value
+                });
+                showAlert('Submission marked successfully!', 'success');
+                dailyReportForm.reset();
+                loadDashboardData(); // Refresh dashboard
+                checkDailySubmissionStatus(); // Update status of daily form button
+            } catch (error) {
+                console.error("Submission Error:", error);
+                showAlert("Failed to mark submission. Please try again. A Firestore index might be required for this query (check F12 console).", "error");
+            } finally {
+                markSubmittedBtn.disabled = false;
+                markSubmittedBtn.textContent = 'Mark This Day as Submitted';
+            }
+        });
+
+        // --- Submission History ---
+        async function loadSubmissionHistory() {
+            if (!currentUser) return;
+            historyContainer.innerHTML = 'Loading history...';
+            const q = query(collection(db, "submissions"), where("uid", "==", currentUser.uid), orderBy("timestamp", "desc"));
+            try {
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    historyContainer.innerHTML = 'No submissions found.';
+                    return;
+                }
+                historyContainer.innerHTML = ''; // Clear loading
+                snap.docs.forEach(doc => {
+                    const data = doc.data();
+                    const item = document.createElement('div');
+                    item.className = 'card mb-2';
+                    item.innerHTML = `
+                        <p><strong>Date:</strong> ${formatDate(data.timestamp)}</p>
+                        <p><strong>Project:</strong> ${data.projectName}</p>
+                        <button class="btn btn-secondary mt-2" data-doc-id="${doc.id}">View Details</button>`;
+                    historyContainer.appendChild(item);
+                });
+                historyContainer.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', (e) => showSubmissionDetails(e.target.dataset.docId));
+                });
+            } catch (error) {
+                console.error("History Error:", error);
+                historyContainer.innerHTML = 'Failed to load history.';
+                showAlert("Failed to load submission history. A Firestore index might be required for this query (check F12 console).", "error");
+            }
+        }
+
+        async function showSubmissionDetails(docId) {
+            try {
+                const docRef = doc(db, "submissions", docId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('detail-date').textContent = formatDate(data.timestamp);
+                    document.getElementById('detail-time').textContent = formatTime(data.timestamp);
+                    document.getElementById('detail-project').textContent = data.projectName;
+                    document.getElementById('detail-summary').textContent = data.workSummary;
+                    submissionDetailsModal.style.display = 'flex';
+                } else {
+                    showAlert("Submission details not found.", "error");
+                }
+            } catch (error) {
+                console.error("Details Error:", error);
+                showAlert("Could not load submission details.", "error");
+            }
+        }
+        closeModalBtn.addEventListener('click', () => { submissionDetailsModal.style.display = 'none'; });
+        window.addEventListener('click', (e) => { if (e.target === submissionDetailsModal) submissionDetailsModal.style.display = 'none'; });
+
+        // --- Leaderboard ---
+        async function loadLeaderboard(date) {
+            currentLeaderboardDate = date;
+            currentLeaderboardMonthSpan.textContent = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            leaderboardBody.innerHTML = '<tr><td colspan="3" class="text-center">Loading...</td></tr>';
+
+            const start = new Date(date.getFullYear(), date.getMonth(), 1);
+            const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+            const q = query(collection(db, "submissions"), where("timestamp", ">=", start), where("timestamp", "<=", end));
+            
+            try {
+                const submissionSnap = await getDocs(q);
+                if(submissionSnap.empty) {
+                    leaderboardBody.innerHTML = '<tr><td colspan="3" class="text-center">No submissions this month.</td></tr>';
+                    myRankSpan.textContent = '-';
+                    mySubmissionCountSpan.textContent = 0;
+                    return;
+                }
+
+                const counts = {};
+                // First pass: aggregate counts and get latest full name for each UID
+                submissionSnap.forEach(doc => {
+                    const data = doc.data();
+                    const uid = data.uid;
+                    counts[uid] = counts[uid] || { name: 'Unknown User', count: 0 }; 
+                    counts[uid].name = data.fullName || counts[uid].name; // Prefer fullName from submission, fallback to existing
+                    counts[uid].count++;
+                });
+
+                // Second pass (if needed): Fetch user data for names not yet known or current user
+                const userUidsToFetch = Object.keys(counts).filter(uid => counts[uid].name === 'Unknown User' || (uid === currentUser?.uid && !currentUserData?.fullName));
+                if (userUidsToFetch.length > 0) {
+                    // Firebase 'in' query supports up to 10 values
+                    const batchSize = 10;
+                    for (let i = 0; i < userUidsToFetch.length; i += batchSize) {
+                        const batchUids = userUidsToFetch.slice(i, i + batchSize);
+                        const usersQuery = query(collection(db, "users"), where("uid", "in", batchUids)); 
+                        const usersSnap = await getDocs(usersQuery);
+                        usersSnap.forEach(userDoc => {
+                            const userData = userDoc.data();
+                            const uid = userData.uid;
+                            if (counts[uid]) {
+                                counts[uid].name = userData.fullName || userData.email || 'Unknown User';
+                            }
+                        });
+                    }
+                }
+                
+                const leaderboard = Object.keys(counts).map(uid => ({
+                    uid,
+                    name: counts[uid].name,
+                    count: counts[uid].count
+                })).sort((a, b) => b.count - a.count);
+
+                leaderboardBody.innerHTML = '';
+                let myRank = '-';
+                leaderboard.forEach((entry, index) => {
+                    const rank = index + 1;
+                    let rankClass = '';
+                    if (rank === 1) rankClass = 'rank-gold';
+                    else if (rank === 2) rankClass = 'rank-silver';
+                    else if (rank === 3) rankClass = 'rank-bronze';
+                    
+                    const row = document.createElement('tr');
+                    if (entry.uid === currentUser.uid) {
+                        row.className = 'current-user-rank';
+                        myRank = rank;
+                    }
+                    row.innerHTML = `<td><span class="${rankClass}">${rank}</span></td><td>${entry.name}</td><td>${entry.count}</td>`;
+                    leaderboardBody.appendChild(row);
+                });
+
+                myRankSpan.textContent = myRank;
+                mySubmissionCountSpan.textContent = counts[currentUser.uid]?.count || 0;
+
+            } catch (error) {
+                console.error("Leaderboard Error:", error);
+                leaderboardBody.innerHTML = '<tr><td colspan="3" class="text-center">Failed to load data.</td></tr>';
+                showAlert("Failed to load leaderboard. A Firestore index might be required for this query (check F12 console).", "error");
+            }
+        }
+        prevMonthBtn.addEventListener('click', () => {
+            const newDate = new Date(currentLeaderboardDate);
+            newDate.setMonth(newDate.getMonth() - 1);
+            loadLeaderboard(newDate);
+        });
+        nextMonthBtn.addEventListener('click', () => {
+            const newDate = new Date(currentLeaderboardDate);
+            newDate.setMonth(newDate.getMonth() + 1);
+            loadLeaderboard(newDate);
+        });
+
+        // --- Profile ---
+        async function loadProfileData() {
+            if (!currentUser) return; // Ensure currentUser exists
+            // Re-fetch currentUserData to ensure it's the latest
+            const userQuery = query(collection(db, "users"), where("uid", "==", currentUser.uid));
+            try {
+                const userSnapshot = await getDocs(userQuery);
+                if (!userSnapshot.empty) {
+                    currentUserData = userSnapshot.docs[0].data(); // Update global currentUserData
+                    profileForm['profile-email'].value = currentUserData.email;
+                    profileForm['profile-fullname'].value = currentUserData.fullName;
+                    profileForm['profile-contact'].value = currentUserData.contactNumber;
+                    profileForm['profile-registered-date'].value = formatDate(currentUserData.registeredDate);
+                } else {
+                    // Fallback if user data not found in 'users' collection (shouldn't happen for logged-in users)
+                    showAlert("User profile data not found.", "error");
+                    profileForm['profile-email'].value = currentUser.email;
+                    profileForm['profile-fullname'].value = 'N/A';
+                    profileForm['profile-contact'].value = 'N/A';
+                    profileForm['profile-registered-date'].value = 'N/A';
+                }
+            } catch (error) {
+                console.error("Error loading profile:", error);
+                showAlert("Failed to load profile data.", "error");
+            }
+        }
+
+        profileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) {
+                showAlert("Please log in to update your profile.", "error");
+                return;
+            }
+
+            const userQuery = query(collection(db, "users"), where("uid", "==", currentUser.uid));
+            try {
+                const userSnapshot = await getDocs(userQuery);
+                if (!userSnapshot.empty) {
+                    const userDocRef = doc(db, "users", userSnapshot.docs[0].id);
+                    await updateDoc(userDocRef, {
+                        fullName: profileForm['profile-fullname'].value,
+                        contactNumber: profileForm['profile-contact'].value
+                    });
+                    showAlert('Profile updated successfully!', 'success'); // Notification here
+                    // Refresh local data and display
+                    currentUserData.fullName = profileForm['profile-fullname'].value;
+                    currentUserData.contactNumber = profileForm['profile-contact'].value;
+                    userNameDisplay.textContent = currentUserData.fullName;
+                } else {
+                    showAlert('User data not found for profile update. Please try logging in again.', 'error'); // Notification here
+                }
+            } catch(err) {
+                console.error("Profile update error:", err);
+                showAlert('Failed to update profile. ' + err.message, 'error'); // Notification here
+            }
+        });
+
+        // --- Download Report Functionality ---
+        downloadReportBtn.addEventListener('click', async () => {
+            if (!currentUser) {
+                showAlert("Please login to download reports.", "info");
+                return;
+            }
+
+            showAlert("Generating report...", "info");
+
+            const now = new Date();
+            const currentMonthName = getMonthName(now);
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+            let submittedCount = 0;
+            let totalDays = getDaysInMonth(now);
+            let historyHtml = 'No submissions found for this month.';
+            let historyData = [];
+            let userRankForMonth = '-';
+            let userSubmissionsForMonth = 0;
+
+            try {
+                // 1. Fetch ALL submissions for the current month to calculate leaderboard
+                const qAllSubmissions = query(collection(db, "submissions"), 
+                    where("timestamp", ">=", startOfMonth), 
+                    where("timestamp", "<=", endOfMonth));
+                const allSubmissionsSnap = await getDocs(qAllSubmissions);
+
+                const counts = {};
+                allSubmissionsSnap.forEach(doc => {
+                    const data = doc.data();
+                    const uid = data.uid;
+                    counts[uid] = counts[uid] || { name: 'Unknown User', count: 0 };
+                    counts[uid].name = data.fullName || counts[uid].name;
+                    counts[uid].count++;
+
+                    // Also capture current user's submission history for the report
+                    if (uid === currentUser.uid) {
+                        historyData.push(data);
+                    }
+                });
+
+                // Sort and determine leaderboard ranks
+                const leaderboard = Object.keys(counts).map(uid => ({
+                    uid,
+                    name: counts[uid].name,
+                    count: counts[uid].count
+                })).sort((a, b) => b.count - a.count);
+
+                // Find current user's rank and submission count for the report
+                const currentUserEntry = leaderboard.find(entry => entry.uid === currentUser.uid);
+                if (currentUserEntry) {
+                    userRankForMonth = leaderboard.indexOf(currentUserEntry) + 1;
+                    userSubmissionsForMonth = currentUserEntry.count;
+                }
+                
+                // Set submittedCount based on current user's actual submissions
+                submittedCount = historyData.length;
+
+                // Sort history data by timestamp ascending for a chronological report
+                historyData.sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+
+                if (historyData.length > 0) {
+                    historyHtml = `
+                        <div class="report-history-table-container" style="overflow-x: auto;">
+                            <table style="min-width: 400px;"> <!-- Ensure table doesn't shrink too much -->
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Project Name</th>
+                                        <th>Work Summary</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    historyData.forEach(data => {
+                        historyHtml += `
+                            <tr>
+                                <td>${formatPdfDate(data.timestamp.toDate())}</td>
+                                <td>${formatTime(data.timestamp)}</td>
+                                <td>${data.projectName}</td>
+                                <td>${data.workSummary}</td>
+                            </tr>`;
+                    });
+                    historyHtml += `</tbody></table></div>`;
+                }
+                
+                // Construct the content for the hidden PDF template
+                const userNameForReport = currentUserData?.fullName || currentUser.email || 'User';
+                const appLogoSrc = "https://images.ctfassets.net/v2a2klvd105s/7ee1ZcSwnBIM8N1wPa0rLh/fc8157a36a8d3180383394698367d273/ChatGPT_Image_Jun_24__2025__10_47_28_AM.png";
+                const footerText = `©${now.getFullYear()} Created by Abhishek Rajput`;
+
+                pdfReportTemplate.innerHTML = `
+                    <div class="pdf-header">
+                        <img src="${appLogoSrc}" alt="Company Logo">
+                        <h2>MCPL JMS ${currentMonthName.toUpperCase()} REPORT</h2>
+                        <div class="user-rank-info">
+                            User: <span>${userNameForReport}</span><br>
+                            Your Rank: <span>${userRankForMonth}</span> (Submissions: <span>${userSubmissionsForMonth}</span>)
+                        </div>
+                    </div>
+                    <p style="text-align: right; font-size: 9px; margin-top: -10px;">Report Generated: ${formatPdfDate(new Date())} ${new Date().toLocaleTimeString()}</p>
+                    <hr>
+                    <div class="report-summary" style="margin-bottom: 15px;">
+                        <p>Total Days in Month: ${totalDays}</p>
+                        <p>Days Submitted: ${submittedCount}</p>
+                        <p>Days Remaining: ${totalDays - submittedCount}</p>
+                    </div>
+                    <div class="report-layout-grid">
+                        <div class="report-history">
+                            <h4>Submission History (${currentMonthName})</h4>
+                            ${historyHtml}
+                        </div>
+                        <div class="report-chart-container">
+                            <canvas id="pdf-report-chart" width="200" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="pdf-footer">${footerText}</div>
+                `;
+                
+                // Re-get the canvas element from the *newly populated* pdfReportTemplate
+                const currentPdfReportChartCanvas = pdfReportTemplate.querySelector('#pdf-report-chart');
+
+                // Initialize the chart within the template's canvas
+                if (reportPieChart) {
+                    reportPieChart.destroy(); 
+                }
+                reportPieChart = updatePieChart(currentPdfReportChartCanvas, submittedCount, totalDays - submittedCount, null);
+
+                // Give Chart.js a moment to render the chart in the hidden canvas
+                await new Promise(resolve => setTimeout(resolve, 300)); // Added this delay to allow chart to render fully
+
+                // Use html2canvas to capture the hidden report content
+                const canvas = await html2canvas(pdfReportTemplate, {
+                    scale: 3, /* Increased scale for better quality in PDF */
+                    logging: false, 
+                    useCORS: true, 
+                    allowTaint: true,
+                    // Explicitly set width/height based on template's A4 size to avoid clipping
+                    width: pdfReportTemplate.offsetWidth,
+                    height: pdfReportTemplate.offsetHeight 
+                });
+
+                // Create a new jsPDF instance
+                const { jsPDF } = window.jspdf;
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4'); 
+                const imgWidth = pdf.internal.pageSize.getWidth(); // A4 width in mm
+                const pageHeight = pdf.internal.pageSize.getHeight(); // A4 height in mm
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                // Download the PDF
+                const fileName = `${userNameForReport.replace(/\s/g, '-') || 'Report'}-${currentMonthName}-${now.getFullYear()}-Report.pdf`;
+                pdf.save(fileName);
+
+                // Clear the hidden template and destroy the chart instance after download
+                pdfReportTemplate.innerHTML = '<canvas id="pdf-report-chart" width="200" height="200"></canvas>'; // Reset template with canvas
+                if (reportPieChart) {
+                    reportPieChart.destroy();
+                    reportPieChart = null;
+                }
+                showAlert("Report downloaded successfully!", "success");
+
+            } catch (error) {
+                console.error("Download Report Error:", error);
+                showAlert("Failed to generate report. Please check the console (F12) for details, a Firestore index might be required for some queries.", "error");
+            }
+        });
+    </script>
+</body>
+</html>
